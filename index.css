@@ -1,0 +1,207 @@
+import React, { useState, useMemo } from 'react';
+import { Filters, Trip } from './types';
+import { TRIPS } from './data/trips';
+import FilterForm from './components/FilterForm';
+import Roulette from './components/Roulette';
+import TripResult from './components/TripResult';
+import { Sparkles, Map as MapIcon, Heart, Compass, List, ArrowLeft } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+
+type Step = 'landing' | 'filter' | 'roulette' | 'result' | 'all-trips';
+
+export default function App() {
+  const [step, setStep] = useState<Step>('landing');
+  const [filters, setFilters] = useState<Filters>({});
+  const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
+
+  const matchedTrips = useMemo(() => {
+    return TRIPS.filter(trip => {
+      if (filters.region && trip.region !== filters.region) return false;
+      if (filters.style && filters.style.length > 0 && !filters.style.includes(trip.style)) return false;
+      if (filters.difficulty && trip.difficulty !== filters.difficulty) return false;
+      if (filters.type && trip.type !== filters.type) return false;
+      if (filters.timeAvailable && trip.timeAvailable !== filters.timeAvailable) return false;
+      if (filters.hasFood && !trip.hasFood) return false;
+      return true;
+    });
+  }, [filters]);
+
+  const handleStartSpin = () => {
+    let finalPool = matchedTrips;
+    if (finalPool.length === 0) {
+      finalPool = TRIPS.filter(t => t.region === filters.region);
+    }
+    if (finalPool.length === 0) {
+      finalPool = TRIPS;
+    }
+
+    const randomTrip = finalPool[Math.floor(Math.random() * finalPool.length)];
+    setSelectedTrip(randomTrip);
+    setStep('roulette');
+  };
+
+  const reset = () => {
+    setStep('filter');
+    setSelectedTrip(null);
+  };
+
+  return (
+    <div className="h-[100dvh] flex flex-col bg-black text-white selection:bg-accent selection:text-black rtl overflow-hidden">
+      {/* Dynamic Header */}
+      <header className="relative z-40 px-6 py-5 flex justify-between items-center bg-black/50 backdrop-blur-md border-b border-white/5">
+        <div 
+          className="flex items-center gap-2 cursor-pointer active:scale-95 transition-transform"
+          onClick={() => setStep('landing')}
+        >
+          <div className="w-10 h-10 bg-accent rounded-xl flex items-center justify-center">
+            <Compass className="text-black" size={24} />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-xl font-black tracking-tight leading-none uppercase">DateSpin</span>
+            <span className="text-[9px] font-black tracking-[0.2em] opacity-40 uppercase">Israel</span>
+          </div>
+        </div>
+
+        {step !== 'landing' && step !== 'result' && (
+          <button 
+            onClick={() => setStep('landing')}
+            className="w-10 h-10 glass rounded-full flex items-center justify-center active:scale-90 transition-transform"
+          >
+            <ArrowLeft size={20} />
+          </button>
+        )}
+      </header>
+
+      {/* Main Content Area */}
+      <main className="flex-grow overflow-y-auto hide-scrollbar relative">
+        <AnimatePresence mode="wait">
+          {step === 'landing' && (
+            <motion.section 
+              key="landing"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="h-full flex flex-col p-8 justify-between"
+            >
+              <div className="space-y-6 pt-12">
+                <div className="inline-flex items-center gap-2 bg-white/5 border border-white/10 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] text-accent">
+                  <Sparkles size={12} /> הגיע הזמן לצאת החוצה
+                </div>
+                <h2 className="text-6xl font-black font-display tracking-tighter leading-[0.9] uppercase">
+                  הדייט המושלם <br />
+                  <span className="opacity-30">במרחק ספין</span>
+                </h2>
+                <p className="text-lg text-white/50 max-w-xs font-medium leading-tight">
+                  אנחנו נבחר לכם את המסלול האידיאלי, לכם נשאר רק לסובב את הגלגל.
+                </p>
+              </div>
+
+              <div className="space-y-4 pb-8">
+                <button 
+                  onClick={() => setStep('filter')}
+                  className="btn-primary w-full"
+                >
+                  בואו נתחיל
+                </button>
+                <button 
+                  onClick={() => setStep('all-trips')}
+                  className="btn-secondary w-full"
+                >
+                  <List size={20} />
+                  לכל המסלולים
+                </button>
+              </div>
+            </motion.section>
+          )}
+
+          {step === 'filter' && (
+            <motion.div 
+              key="filter"
+              initial={{ opacity: 0, x: 50 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -50 }}
+              className="h-full"
+            >
+              <FilterForm 
+                filters={filters} 
+                setFilters={setFilters} 
+                onNext={handleStartSpin} 
+              />
+            </motion.div>
+          )}
+
+          {step === 'roulette' && selectedTrip && (
+            <motion.div 
+              key="roulette"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="h-full"
+            >
+              <Roulette 
+                result={{
+                  region: selectedTrip.region,
+                  style: selectedTrip.style,
+                  type: selectedTrip.type
+                }}
+                onComplete={() => setStep('result')}
+              />
+            </motion.div>
+          )}
+
+          {step === 'result' && selectedTrip && (
+            <TripResult 
+              key="result"
+              trip={selectedTrip} 
+              onReset={reset} 
+            />
+          )}
+
+          {step === 'all-trips' && (
+            <motion.div
+              key="all-trips"
+              initial={{ opacity: 0, y: 50 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 50 }}
+              className="p-6 space-y-8"
+            >
+              <header className="space-y-2">
+                <h2 className="text-4xl font-black font-display uppercase tracking-tight">כל המסלולים</h2>
+                <p className="text-white/40 font-medium">מצאו את ההשראה הבאה שלכם</p>
+              </header>
+
+              <div className="grid grid-cols-1 gap-6">
+                {TRIPS.map(trip => (
+                  <div 
+                    key={trip.id}
+                    onClick={() => {
+                      setSelectedTrip(trip);
+                      setStep('result');
+                    }}
+                    className="group glass rounded-3xl overflow-hidden active:scale-[0.98] transition-transform"
+                  >
+                    <div className="aspect-[16/9] overflow-hidden bg-white/5 relative">
+                      <img 
+                        src={trip.imageUrl || 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?q=80&w=600&auto=format&fit=crop'} 
+                        alt={trip.name} 
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-[9px] font-black uppercase text-accent border border-accent/20">
+                        {trip.region === 'north' ? 'צפון' : trip.region === 'center' ? 'מרכז' : trip.region === 'jerusalem' ? 'ירושלים' : 'דרום'}
+                      </div>
+                    </div>
+                    <div className="p-6">
+                      <h3 className="text-2xl font-black mb-1">{trip.name}</h3>
+                      <p className="text-white/40 text-sm font-medium line-clamp-1">{trip.description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="h-20" /> {/* Spacer */}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </main>
+    </div>
+  );
+}
